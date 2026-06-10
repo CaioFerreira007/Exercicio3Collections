@@ -165,7 +165,7 @@ class Main {
                                         ).reversed()
                                 )
                                 .toList();
-
+                        ordenados.forEach(System.out::println);
                         menu();
                         opcao = sc.nextInt();
                         break;
