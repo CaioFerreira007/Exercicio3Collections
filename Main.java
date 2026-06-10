@@ -23,16 +23,11 @@ class Main {
                     case 1:
                         System.out.println("Digite o id do produto: ");
                         int id = sc.nextInt();
-                        boolean existe = false;
-                        for(Produto prod : produtos){
-                            if(prod.getIdProduto().equals(id)){
-                                existe = true;
-                                break;
-                            }
+                        Produto produtoExistente = produtos.stream().filter(p -> p.getIdProduto().equals(id)).findFirst().orElse(null);
+                        if(produtoExistente != null) {
+                            throw new EstoqueException("Produto já cadastrado!");
                         }
-                        if(existe){
-                            throw new EstoqueException("Produto já cadastrado! ");
-                        }
+
                         System.out.println("Digite o nome do produto: ");
                         sc.nextLine();
                         String nome = sc.nextLine();
@@ -42,14 +37,7 @@ class Main {
                         sc.nextLine();
                         String categoria = sc.nextLine();
 
-                        Categoria categoriaExistente = null;
-
-                        for(Categoria cat : categorias){
-                            if(cat.getCategoriaProduto().equalsIgnoreCase(categoria)){
-                                categoriaExistente = cat;
-                                break;
-                            }
-                        }
+                        Categoria categoriaExistente = categorias.stream().filter(c -> c.getCategoriaProduto().equals(categoria)).findFirst().orElse(null);
 
                         if(categoriaExistente == null){
                             categoriaExistente = new Categoria(categoria);
@@ -68,6 +56,10 @@ class Main {
                     case 2:
                         System.out.println("Digite o id do vendedor: ");
                         int idVendedor = sc.nextInt();
+                        Vendedor vendedorExistente = vendedores.stream().filter(v -> v.getIdVendedor().equals(idVendedor)).findFirst().orElse(null);
+                        if(vendedorExistente != null) {
+                            throw new EstoqueException("Vendedor já cadastrado!");
+                        }
                         Vendedor vendedor = new Vendedor(idVendedor);
                         vendedores.add(vendedor);
                         menu();
@@ -77,29 +69,22 @@ class Main {
                     case 3:
                         System.out.println("Digite o id da venda: ");
                         int idVenda = sc.nextInt();
+                        Vendas vendaExistente = vendas.values().stream().flatMap(Collection::stream).
+                                filter(v -> v.getIdVendas().equals(idVenda)).findFirst().orElse(null);
+                        if(vendaExistente != null) {
+                            throw new EstoqueException("ID da venda já cadastrada!");
+                        }
                         System.out.println("Digite o id do vendedor: ");
                         idVendedor = sc.nextInt();
-                        Vendedor buscaVendedor = null;
-                        for (Vendedor ved : vendedores) {
-                            if (ved.getIdVendedor().equals(idVendedor)) {
-                                buscaVendedor = ved;
-                            }
+                        Vendedor buscaVendedor = vendedores.stream().filter(v -> v.getIdVendedor().equals(idVendedor)).findFirst().orElse(null);
+                        if(buscaVendedor == null) {
+                            throw new EstoqueException("Vendedor não encontrado ou não existe!");
                         }
-                        if (buscaVendedor == null) {
-                            System.out.println("Vendedor não encontrado!");
-                            break;
-                        }
-                        System.out.println("Qual produto deseja vender? ");
+                        System.out.println("ID do produto: ");
                         id = sc.nextInt();
-                        Produto encontrado = null;
-                        for (Produto prod : produtos) {
-                            if (prod.getIdProduto().equals(id)) {
-                                encontrado = prod;
-                            }
-                        }
-                        if (encontrado == null) {
-                            System.out.println("Produto não encontrado!");
-                            break;
+                        Produto encontrado = produtos.stream().filter(p1 -> p1.getIdProduto().equals(id)).findFirst().orElse(null);
+                        if(encontrado == null) {
+                            throw new EstoqueException("Produto não encontrado ou não existe!");
                         }
                         System.out.println("Quantas unidades deseja vender? ");
                         int unidadesVendas = sc.nextInt();
@@ -115,98 +100,74 @@ class Main {
 
                     case 4:
                         Map<Integer, Double> totalPorVendedor = new HashMap<>();
-                        for(Vendedor vend : vendedores) {
-                            double total = 0.0;
-                            for(Vendas venda : vend.getVendas()) {
-                                total += venda.getValorVenda();
-                            }
+                        vendedores.forEach( vend -> {
+                            double total = vend.getVendas().stream().mapToDouble(Vendas::getValorVenda).sum();
                             totalPorVendedor.put(vend.getIdVendedor(), total);
-                        }
-                        for(Integer idV : totalPorVendedor.keySet()) {
-                            System.out.println("Vendedor: " + idV + " | Total: " + totalPorVendedor.get(idV));
-                        }
+                        });
+
+                        totalPorVendedor.forEach((idV, total) -> System.out.println("Vendedor " + idV + " | " + total));
+                        menu();
+                        opcao = sc.nextInt();
                         break;
                     case 5:
 
                         Map<String, Double> totalPorCategoria = new HashMap<>();
 
-                        for (Produto prod : vendas.keySet()) {
-
-                            String nomeCategoria =
-                                    prod.getCategoriaProduto().getCategoriaProduto();
-
-                            listaVendas = vendas.get(prod);
-
-                            double totalProduto = listaVendas
+                        vendas.forEach((prod, lista)-> {
+                            String nomeCategoria = prod.getCategoriaProduto().getCategoriaProduto();
+                            double totalProduto = lista
                                     .stream()
                                     .mapToDouble(Vendas::getValorVenda)
                                     .sum();
 
-                            double totalAtual =
-                                    totalPorCategoria.getOrDefault(nomeCategoria, 0.0);
+                            double totalAtual = totalPorCategoria.getOrDefault(nomeCategoria, 0.0);
+                            totalPorCategoria.put(nomeCategoria, totalAtual + totalProduto);
+                        });
 
-                            totalPorCategoria.put(
-                                    nomeCategoria,
-                                    totalAtual + totalProduto
-                            );
-                        }
 
-                        for (String cat : totalPorCategoria.keySet()) {
-
-                            System.out.println(
-                                    "Categoria: " + cat +
-                                            " | Total vendido: " +
-                                            totalPorCategoria.get(cat)
-                            );
-                        }
+                        categorias.forEach((cat) -> System.out.println("Categoria: " +
+                                cat.getCategoriaProduto() + " | Total vendido: " + totalPorCategoria.get(cat.getCategoriaProduto())));
 
                         menu();
                         opcao = sc.nextInt();
                         break;
                     case 6:
-                        Vendedor maior = null;
-                        double maiorFat = 0.0;
-                        for(Vendedor vend : vendedores) {
-                            double total = 0.0;
-                            for(Vendas venda : vend.getVendas()) {
-                                total += venda.getValorVenda();
-                            }
-                            if(total > maiorFat) {
-                                maiorFat = total;
-                                maior = vend;
-                            }
+
+                        Vendedor maiorFaturamentoVendedor = vendedores.stream().max( Comparator.comparingDouble(vend -> vend.getVendas()
+                                .stream().mapToDouble(Vendas::getValorVenda).sum())).orElse(null);
+
+                        if(maiorFaturamentoVendedor != null) {
+                            double totalFaturamento = maiorFaturamentoVendedor.getVendas().stream().mapToDouble(Vendas::getValorVenda).sum();
+                            System.out.println("Vendedor " + maiorFaturamentoVendedor.getIdVendedor() + " | " + totalFaturamento);
+                        }else{
+                            System.out.println("Nenhuma venda realizada!");
                         }
-                        if(maior != null) {
-                            System.out.println("Maior faturamento: Vendedor " + maior.getIdVendedor() + " | " + maiorFat);
-                        }
+
+                        menu();
+                        opcao = sc.nextInt();
+
                         break;
 
                     case 7:
-                        for(Categoria cat : categorias){
-                            System.out.println(cat.getCategoriaProduto());
-                        }
+                     categorias.forEach(cat -> System.out.println(cat.getCategoriaProduto()));
                         menu();
                         opcao = sc.nextInt();
                         break;
                     case 8:
-                        List<Vendedor> ordenados = new ArrayList<>(vendedores);
-                        for(int i = 0; i < ordenados.size() - 1; i++) {
-                            for(int j = i + 1; j < ordenados.size(); j++) {
-                                double fatI = 0.0, fatJ = 0.0;
-                                for(Vendas venda : ordenados.get(i).getVendas()) fatI += venda.getValorVenda();
-                                for(Vendas venda : ordenados.get(j).getVendas()) fatJ += venda.getValorVenda();
-                                if(fatJ > fatI) {
-                                    Vendedor temp = ordenados.get(i);
-                                    ordenados.set(i, ordenados.get(j));
-                                    ordenados.set(j, temp);
-                                }
-                            }
-                        }
-                        for(int i = 0; i < ordenados.size(); i++) {
-                            double fat = 0.0;
-                            for(Vendas venda : ordenados.get(i).getVendas()) fat += venda.getValorVenda();
-                            System.out.println((i+1) + "º - Vendedor " + ordenados.get(i).getIdVendedor() + " | " + fat);
-                        }
+
+                        List<Vendedor> ordenados = vendedores.stream()
+                                .sorted(
+                                        Comparator.comparingDouble((Vendedor vend) ->
+                                                vend.getVendas()
+                                                        .stream()
+                                                        .mapToDouble(Vendas::getValorVenda)
+                                                        .sum()
+                                        ).reversed()
+                                )
+                                .toList();
+
+                        menu();
+                        opcao = sc.nextInt();
                         break;
                     default:
                         System.out.println("Opção inválida!");
